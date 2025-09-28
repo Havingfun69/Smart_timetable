@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Timetable App</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body {font-family: Arial, sans-serif; margin: 0; background: var(--bg, #f5f5fa); color: var(--c, #333333);}
+    .appbar {display: flex; align-items: center; background: #6153cc; padding: 16px; border-radius: 0 0 28px 28px;}
+    .menu-icon {cursor: pointer; margin-right: 12px;}
+    .menu-icon span {display: block; width: 30px; height: 4px; background: #fff; margin: 4px 0; border-radius: 2px;}
+    .search-area {flex: 1; display: flex; align-items: center; background: #fff; border-radius: 12px;}
+    .search-box {border: none; outline: none; padding: 10px; flex: 1; border-radius: 12px; font-size: 1em;}
+    .search-btn {background: none; border: none; color: #6153cc; font-size: 18px; margin-right: 10px;}
+    .drawer {position: fixed; left: -240px; top: 0; bottom: 0; width: 240px; background: #fff; border-radius: 0 12px 12px 0; box-shadow: 2px 0 16px #aaa4; z-index: 1001; padding-top: 54px; transition: left .3s;}
+    .drawer.open {left: 0;}
+    .drawer ul {list-style: none; padding: 0; margin: 0;}
+    .drawer li {font-size: 1.09em; padding: 16px 22px; border-bottom: 1px solid #ececf1; cursor: pointer; display: flex; align-items: center;}
+    .drawer li span {margin-right: 10px;}
+    .drawer-close {position: absolute; right: 14px; top: 14px; font-size: 1.3em; cursor: pointer; color: #6153cc;}
+    .overlay {display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.14); z-index: 1000;}
+    .overlay.show {display: block;}
+    .content {max-width: 540px; margin: 14px auto 0 auto; padding-bottom: 100px;}
+    h2 {margin: 28px 0 8px 0;}
+    .day-list, .preset-list {margin-bottom: 26px;}
+    .day-card, .preset-card {background: #fff; margin-bottom: 12px; border-radius: 14px; box-shadow: 0 2px 8px #9484e420; padding: 16px; font-size: 1.13em; color: #273c75; font-weight: 500; cursor: pointer;}
+    .day-card:hover, .preset-card:hover {background: #6153cc; color: #fff;}
+    .fab {position: fixed; right: 28px; bottom: 32px; background: #fed44b; color: #6153cc; border: none; border-radius: 50%; width: 52px; height: 52px; font-size: 2.2em; cursor: pointer; box-shadow: 0 4px 22px #9686f545;}
+    .section {display: none;}
+    .section.active {display: block;}
+    .drafts-list .draft-card {background: #fff; margin-bottom: 12px; border-radius: 14px; box-shadow: 0 2px 8px #d1c9f5a4; padding: 13px; font-size: 1em; color: #555; font-weight: 400; cursor: pointer;}
+    .dialog, .show-dialog, .faq-dialog, .settings-dialog {display: none; position: fixed; left: 0; top: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.10); z-index: 1201; align-items: center; justify-content: center;}
+    .dialog.active, .show-dialog.active, .faq-dialog.active, .settings-dialog.active {display: flex;}
+    .dialog-box, .show-box, .faq-box, .settings-box {background: #fff; border-radius: 16px; box-shadow: 0 4px 20px #9085e2a8; padding: 28px 16px; min-width: 250px; max-width: 380px; width: 90vw; text-align: center; position: relative;}
+    .close-dialog, .close-faq, .close-settings {position: absolute; right: 13px; top: 10px; font-size: 1.2em; cursor: pointer; color: #6135cc;}
+    .show-title {font-weight: 700; font-size: 1.19em; color: #6135cc;}
+    .show-times {text-align:left; font-size: 1.08em; margin: 18px 0 6px 0; color:#555;}
+    .faq-q {font-weight: 500; margin: 6px 0; cursor: pointer; padding: 6px; border-radius: 6px;}
+    .faq-q.active {background: #eee;}
+    .faq-a {margin-bottom: 9px; color: #444; font-size: .97em; display: none;}
+    .faq-a.visible {display: block;}
+    .settings-row {margin-bottom: 14px;}
+    .settings-box button {padding: 6px 14px; font-size: 1em; border-radius: 7px; border: none; cursor: pointer;}
+    .settings-box .theme-btn {background: #fed44b; color: #333333; font-weight: 500; margin-left: 8px;}
+    body.theme-dark {--bg: #232136; --c: #6135cc;}
+    body.theme-dark .day-card, body.theme-dark .preset-card {background: #393075; color: #fed44b;}
+    body.theme-dark .draft-card {background: #393075; color: #fed44b;}
+    body.theme-dark .appbar {background:#393075;}
+    body.theme-dark .search-area {background:#393075;}
+  </style>
+</head>
+<body>
+<div class="appbar">
+  <div class="menu-icon" id="menuButton"><span></span><span></span><span></span></div>
+  <form class="search-area" id="searchForm" onsubmit="event.preventDefault();">
+    <input type="text" class="search-box" id="searchInput" placeholder="Search..." />
+    <button type="submit" class="search-btn" id="searchBtn">&#128269;</button>
+  </form>
+</div>
+<div class="drawer" id="drawerMenu">
+  <div class="drawer-close" id="closeDrawer">&times;</div>
+  <ul>
+    <li id="btnHome"><span>&#8962;</span>Home</li>
+    <li id="btnStarred"><span>&#9733;</span>Starred Schedule</li>
+    <li id="btnDrafts"><span>&#9998;</span>Drafts</li>
+    <li id="btnAbout"><span>&#8505;</span>About</li>
+    <li id="btnSettings"><span>&#9881;</span>Settings</li>
+    <li id="btnHelp"><span style="color:#f22;">&#10067;</span>Help & Feedback</li>
+  </ul>
+</div>
+<div class="overlay" id="menuOverlay"></div>
+<div class="content">
+  <section class="section active" id="sectionHome">
+    <h2>Premade Presets</h2>
+    <div class="preset-list" id="presetList"></div>
+    <h2>Drafts</h2>
+    <div class="drafts-list" id="draftList"></div>
+  </section>
+  <section class="section" id="sectionStarred">
+    <h2>Starred Schedule</h2>
+    <div style="margin:14px 0;">
+      <div class="day-card" style="color:#ebc12c;" title="Starred">Important Exam - 10am Monday</div>
+      <div class="day-card" style="color:#ebc12c;" title="Starred">Parent Meeting - Wednesday 3pm</div>
+    </div>
+  </section>
+  <section class="section" id="sectionDrafts">
+    <h2>Drafts</h2>
+    <div class="drafts-list" id="draftListOnly"></div>
+  </section>
+  <section class="section" id="sectionAbout">
+    <h2>About</h2>
+    <div style="padding:18px;text-align:center;">Smart Timetable shows your full week and project drafts with a mobile-friendly UI. All controls are accessible and theme-ready.</div>
+  </section>
+</div>
+<button class="fab" id="addButton">+</button>
+
+<!-- Day schedule dialog -->
+<div class="show-dialog" id="showDialog">
+  <div class="show-box">
+    <span class="close-dialog" id="closeShowDialog" style="position:absolute;top:10px;right:13px;">❌</span>
+    <div class="show-title" id="showDayTitle"></div>
+    <div class="show-times" id="showDayTimes"></div>
+  </div>
+</div>
+
+<!-- Add Draft dialog -->
+<div class="dialog" id="addDialog">
+  <div class="dialog-box">
+    <span class="close-dialog" id="closeAddDialog">❌</span>
+    <h3 style="color:#6153cc">Add Draft</h3>
+    <input style="width:90%;margin-bottom:8px" id="draftTitle" type="text" placeholder="Draft Title" /><br>
+    <textarea style="width:90%;margin-bottom:9px" id="draftDesc" rows="2" placeholder="Progress / Description"></textarea>
+    <br>
+    <button id="saveDraftBtn">Add</button>
+  </div>
+</div>
+
+<!-- FAQ dialog -->
+<div class="faq-dialog" id="faqDialog">
+  <div class="faq-box" style="padding-top:28px;padding-bottom:15px;">
+    <span class="close-faq" id="closeFaqDialog">❌</span>
+    <h3 style="color:#6153cc;margin-bottom:7px;">Frequently Asked Questions</h3>
+    <div>
+      <div class="faq-q" onclick="toggleFaq(0)">How to add a draft?</div>
+      <div class="faq-a" id="faqA0">Click + button. Fill title and save.</div>
+      <div class="faq-q" onclick="toggleFaq(1)">How to switch theme?</div>
+      <div class="faq-a" id="faqA1">Go to Menu → Settings. Tap the theme button.</div>
+      <div class="faq-q" onclick="toggleFaq(2)">How do I search?</div>
+      <div class="faq-a" id="faqA2">Type a preset or draft name, press search or Enter.</div>
+      <div class="faq-q" onclick="toggleFaq(3)">How to exit schedule dialog?</div>
+      <div class="faq-a" id="faqA3">Click the ❌ button at the top right of the dialog.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings dialog -->
+<div class="settings-dialog" id="settingsDialog">
+  <div class="settings-box" style="padding-top:28px;padding-bottom:15px;">
+    <span class="close-settings" id="closeSettingsDialog">❌</span>
+    <h3 style="color:#6153cc;margin-bottom:10px;">Settings</h3>
+    <div class="settings-row"><b>Theme:</b>
+      <button id="themeToggle" class="theme-btn">Switch to Dark</button>
+    </div>
+    <div class="settings-row"><b>Notification:</b>
+      <select>
+        <option>On</option>
+        <option>Off</option>
+      </select>
+    </div>
+    <div class="settings-row"><b>Language:</b>
+      <select>
+        <option>English</option>
+        <option>Hindi</option>
+        <option>French</option>
+      </select>
+    </div>
+  </div>
+</div>
+<script>
+  // Preset demo data
+  const presets = [
+    {title: "Morning Routine", desc: "Preset schedule for mornings", details:["6:30 Wake-up","7:00 Yoga","7:30 Breakfast","8:00 Ready for Class"]},
+    {title: "Weekly Study", desc: "Weekly study plan", details:["Math: Mon/Wed/Fri","Science: Tue/Thu","English: Sat","Sunday: Revision"]},
+    {title: "Fitness Regime", desc: "Premade fitness schedule", details:["Mon: Cardio","Tue: Abs/Upper","Thu: Lower body","Sat: Running"]}
+  ];
+  // Draft demo data
+  let drafts = [
+    {title:"Science Fair Project",desc:"Progress: 60%"},
+    {title:"Math Revision",desc:"Progress: 80%"}
+  ];
+  // Show/hide sections
+  function showSection(idToShow) {
+    document.querySelectorAll('.section').forEach(sec=>sec.classList.remove('active'));
+    document.getElementById(idToShow).classList.add('active');
+    drawer.classList.remove('open'); overlay.classList.remove('show');
+    window.scrollTo({top:0});
+  }
+
+  // Render preset cards, with search support
+  function renderPresets(search="") {
+    document.getElementById('presetList').innerHTML = "";
+    presets.filter(p=>p.title.toLowerCase().includes(search.toLowerCase()))
+    .forEach(preset=>{
+      let cc=document.createElement('div');
+      cc.className='preset-card';
+      cc.tabIndex=0;
+      cc.textContent=preset.title + " - " + preset.desc;
+      cc.onclick=()=>showSchedule(preset);
+      cc.onkeypress = e => { if(e.key==='Enter') showSchedule(preset);}
+      document.getElementById('presetList').appendChild(cc);
+    });
+  }
+
+  // Drafts with search
+  function renderDrafts(search="") {
+    document.getElementById('draftList').innerHTML = "";
+    drafts.filter(d=>d.title.toLowerCase().includes(search.toLowerCase())||d.desc.toLowerCase().includes(search.toLowerCase()))
+    .forEach(draft=>{
+      let dd=document.createElement("div");
+      dd.className="draft-card";
+      dd.innerHTML=`<b>${draft.title}</b><br><span>${draft.desc}</span>`;
+      document.getElementById('draftList').appendChild(dd);
+    });
+    document.getElementById('draftListOnly').innerHTML = "";
+    drafts.forEach(d=>{
+      let dd=document.createElement("div");
+      dd.className="draft-card";
+      dd.innerHTML=`<b>${d.title}</b><br><span>${d.desc}</span>`;
+      document.getElementById('draftListOnly').appendChild(dd);
+    });
+  }
+
+  // Show schedule dialog
+  function showSchedule(item) {
+    document.getElementById('showDialog').classList.add('active');
+    document.getElementById('showDayTitle').textContent = item.title || item.day;
+    document.getElementById('showDayTimes').innerHTML = (item.details||item.times||[]).map(t=>`• ${t}`).join("<br>");
+  }
+  document.getElementById('closeShowDialog').onclick = ()=>{document.getElementById('showDialog').classList.remove('active');};
+
+  // Menu logic
+  const menuBtn=document.getElementById('menuButton');
+  const drawer=document.getElementById('drawerMenu');
+  const overlay=document.getElementById('menuOverlay');
+  menuBtn.onclick=()=>{drawer.classList.add('open');overlay.classList.add('show');};
+  overlay.onclick=()=>{drawer.classList.remove('open');overlay.classList.remove('show');};
+  document.getElementById('closeDrawer').onclick=()=>{drawer.classList.remove('open');overlay.classList.remove('show');};
+  // Add Draft logic
+  document.getElementById('addButton').onclick=()=>{document.getElementById('addDialog').classList.add('active');};
+  document.getElementById('closeAddDialog').onclick=()=>{document.getElementById('addDialog').classList.remove('active');};
+  document.getElementById('saveDraftBtn').onclick=()=>{
+    let t=document.getElementById('draftTitle').value.trim();
+    let d=document.getElementById('draftDesc').value.trim();
+    if(t){drafts.push({title:t,desc:d});renderDrafts();document.getElementById('addDialog').classList.remove('active');}
+  };
+  // Search
+  function triggerSearch(){
+    let q=document.getElementById('searchInput').value.trim();
+    renderPresets(q); renderDrafts(q);
+  }
+  document.getElementById('searchForm').onsubmit=()=>{triggerSearch(); return false;};
+  document.getElementById('searchInput').oninput=()=>{triggerSearch();};
+  document.getElementById('searchBtn').onclick=()=>{triggerSearch();};
+
+  // Section navigation
+  document.getElementById('btnHome').onclick = () => showSection('sectionHome');
+  document.getElementById('btnStarred').onclick = () => showSection('sectionStarred');
+  document.getElementById('btnDrafts').onclick = () => showSection('sectionDrafts');
+  document.getElementById('btnAbout').onclick = () => showSection('sectionAbout');
+  document.getElementById('btnSettings').onclick = () => {drawer.classList.remove('open');overlay.classList.remove('show');document.getElementById('settingsDialog').classList.add('active');};
+  document.getElementById('btnHelp').onclick = () => {drawer.classList.remove('open');overlay.classList.remove('show');document.getElementById('faqDialog').classList.add('active');};
+  // FAQ dialog logic
+  document.getElementById('closeFaqDialog').onclick = () => document.getElementById('faqDialog').classList.remove('active');
+  function toggleFaq(idx) {
+    for(let i=0;i<=3;i++) {
+      document.getElementById('faqA'+i).classList.remove('visible');
+      document.querySelectorAll('.faq-q')[i].classList.remove('active');
+    }
+    document.getElementById('faqA'+idx).classList.add('visible');
+    document.querySelectorAll('.faq-q')[idx].classList.add('active');
+  }
+  // Settings dialog logic
+  document.getElementById('closeSettingsDialog').onclick=()=>document.getElementById('settingsDialog').classList.remove('active');
+  document.getElementById('themeToggle').onclick = function(){
+    if(document.body.classList.contains('theme-dark')) {
+      document.body.classList.remove('theme-dark');
+      this.textContent = "Switch to Dark";
+    } else {
+      document.body.classList.add('theme-dark');
+      this.textContent = "Switch to Light";
+    }
+  }
+  // Initial render
+  renderPresets(""); renderDrafts("");
+</script>
+</body>
+</html>
